@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "73179694164",
+    "project_id": "hirut-cosmetics",
+    "storage_bucket": "hirut-cosmetics.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:73179694164:android:fbcf71dd66c86d959719c1",
+        "android_client_info": {
+          "package_name": "com.example.hiracosmetics"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDBklegVLp-0-YBLryU4PDtGMZS6EqTYY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
