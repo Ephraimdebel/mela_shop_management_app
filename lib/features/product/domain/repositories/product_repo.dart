@@ -18,7 +18,7 @@ abstract class ProductRepo {
   Future<Either<String, List<Product>>> getProducts();
   Future<Either<String, Unit>> updateProduct(Product product);
   Future<Either<String, Unit>> deleteProduct(String id);
-  Future<Either<String, Map<String, dynamic>>> dailyStats();
+  Stream<Either<String, Map<String, dynamic>>> dailyStats();
   // sale product
   Future<Either<String, Unit>> sellProduct({
     required String productId,
@@ -27,11 +27,14 @@ abstract class ProductRepo {
   });
 
   // get sold products
-  Future<Either<String, List<Product>>> getSoldProducts();
+  Stream<Either<String, List<Product>>> getSoldProducts();
 
   // get monthly stats
-  Future<Either<String, Map<String, dynamic>>> monthlyStats(int month);
+  Stream<Either<String, Map<String, dynamic>>> monthlyStats(int month);
 
   // most sold product in that month
-  Future<Either<String, List<Product>>> mostSoldProducts(int month);
+  Stream<Either<String, List<Product>>> mostSoldProducts(int month);
+
+  // get each category performance per month
+  Stream<Either<String, Map<String, dynamic>>> categoryPerformance(int month);
 }

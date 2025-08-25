@@ -16,7 +16,10 @@ _$ProductImpl _$$ProductImplFromJson(Map<String, dynamic> json) =>
       soldQuantity: (json['soldQuantity'] as num).toInt(),
       isSaled: json['isSaled'] as bool,
       type: $enumDecode(_$CategoryEnumMap, json['type']),
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt:
+          json['createdAt'] == null
+              ? null
+              : DateTime.parse(json['createdAt'] as String),
       saledAt:
           json['saledAt'] == null
               ? null
@@ -33,7 +36,7 @@ Map<String, dynamic> _$$ProductImplToJson(_$ProductImpl instance) =>
       'soldQuantity': instance.soldQuantity,
       'isSaled': instance.isSaled,
       'type': _$CategoryEnumMap[instance.type]!,
-      'createdAt': instance.createdAt.toIso8601String(),
+      'createdAt': instance.createdAt?.toIso8601String(),
       'saledAt': instance.saledAt?.toIso8601String(),
     };
 

@@ -31,7 +31,7 @@ mixin _$Product {
       throw _privateConstructorUsedError; // units sold so far
   bool get isSaled => throw _privateConstructorUsedError; // true if fully sold
   Category get type => throw _privateConstructorUsedError;
-  DateTime get createdAt => throw _privateConstructorUsedError;
+  DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get saledAt => throw _privateConstructorUsedError;
 
   /// Serializes this Product to a JSON map.
@@ -57,7 +57,7 @@ abstract class $ProductCopyWith<$Res> {
     int soldQuantity,
     bool isSaled,
     Category type,
-    DateTime createdAt,
+    DateTime? createdAt,
     DateTime? saledAt,
   });
 }
@@ -85,7 +85,7 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
     Object? soldQuantity = null,
     Object? isSaled = null,
     Object? type = null,
-    Object? createdAt = null,
+    Object? createdAt = freezed,
     Object? saledAt = freezed,
   }) {
     return _then(
@@ -131,10 +131,10 @@ class _$ProductCopyWithImpl<$Res, $Val extends Product>
                     : type // ignore: cast_nullable_to_non_nullable
                         as Category,
             createdAt:
-                null == createdAt
+                freezed == createdAt
                     ? _value.createdAt
                     : createdAt // ignore: cast_nullable_to_non_nullable
-                        as DateTime,
+                        as DateTime?,
             saledAt:
                 freezed == saledAt
                     ? _value.saledAt
@@ -163,7 +163,7 @@ abstract class _$$ProductImplCopyWith<$Res> implements $ProductCopyWith<$Res> {
     int soldQuantity,
     bool isSaled,
     Category type,
-    DateTime createdAt,
+    DateTime? createdAt,
     DateTime? saledAt,
   });
 }
@@ -190,7 +190,7 @@ class __$$ProductImplCopyWithImpl<$Res>
     Object? soldQuantity = null,
     Object? isSaled = null,
     Object? type = null,
-    Object? createdAt = null,
+    Object? createdAt = freezed,
     Object? saledAt = freezed,
   }) {
     return _then(
@@ -236,10 +236,10 @@ class __$$ProductImplCopyWithImpl<$Res>
                 : type // ignore: cast_nullable_to_non_nullable
                     as Category,
         createdAt:
-            null == createdAt
+            freezed == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
-                    as DateTime,
+                    as DateTime?,
         saledAt:
             freezed == saledAt
                 ? _value.saledAt
@@ -262,7 +262,7 @@ class _$ProductImpl implements _Product {
     required this.soldQuantity,
     required this.isSaled,
     required this.type,
-    required this.createdAt,
+    this.createdAt,
     this.saledAt,
   });
 
@@ -291,7 +291,7 @@ class _$ProductImpl implements _Product {
   @override
   final Category type;
   @override
-  final DateTime createdAt;
+  final DateTime? createdAt;
   @override
   final DateTime? saledAt;
 
@@ -361,7 +361,7 @@ abstract class _Product implements Product {
     required final int soldQuantity,
     required final bool isSaled,
     required final Category type,
-    required final DateTime createdAt,
+    final DateTime? createdAt,
     final DateTime? saledAt,
   }) = _$ProductImpl;
 
@@ -384,7 +384,7 @@ abstract class _Product implements Product {
   @override
   Category get type;
   @override
-  DateTime get createdAt;
+  DateTime? get createdAt;
   @override
   DateTime? get saledAt;
 

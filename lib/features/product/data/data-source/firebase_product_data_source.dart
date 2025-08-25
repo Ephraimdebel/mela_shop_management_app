@@ -15,28 +15,32 @@ class FirebaseProductDataSource implements ProductDataSource {
   CollectionReference<Map<String, dynamic>> get _productsCollection =>
       _firestore.collection('users').doc(_userId).collection('products');
 
-CollectionReference<Map<String, dynamic>> get _soldProductsCollection =>
+  CollectionReference<Map<String, dynamic>> get _soldProductsCollection =>
       _firestore.collection('users').doc(_userId).collection('sold_products');
 
   @override
   Future<void> addProduct(Product product) async {
     if (_userId == null) throw Exception('User not authenticated');
-    final productData = {...product.toJson(), 'userId': _userId};
+
+    final productData = {
+      ...product.toJson(),
+      'userId': _userId,
+      'createdAt': FieldValue.serverTimestamp(), // ✅ server time
+    };
 
     await _productsCollection.doc(product.id).set(productData);
   }
 
-  // @override
-  // Future<void> deleteProduct(String id) {
-  //   // TODO: implement deleteProduct
-  //   throw UnimplementedError();
-  // }
-
   @override
   Future<List<Product>> getProducts() async {
     if (_userId == null) throw Exception('User not authenticated');
+
     final snapshot =
-        await _productsCollection.where('userId', isEqualTo: _userId).get();
+        await _productsCollection
+            .where('userId', isEqualTo: _userId)
+            .orderBy('createdAt', descending: true) // ✅ newest first
+            .get();
+
     return snapshot.docs.map((doc) => Product.fromJson(doc.data())).toList();
   }
 
@@ -47,92 +51,97 @@ CollectionReference<Map<String, dynamic>> get _soldProductsCollection =>
   // }
 
   @override
-Future<Map<String, dynamic>> dailyStats() async {
-  if (_userId == null) throw Exception('User not authenticated');
+  Stream<Map<String, dynamic>> dailyStats() async* {
+    if (_userId == null) throw Exception('User not authenticated');
 
-  final now = DateTime.now();
-  final startOfDay = DateTime(now.year, now.month, now.day);
-  final endOfDay = startOfDay.add(const Duration(days: 1));
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
 
-  // ⚡ Note: You may need a Firestore composite index for userId + saledAt
-  final snapshot = await _soldProductsCollection
-      .where('userId', isEqualTo: _userId)
-      .where('saledAt', isGreaterThanOrEqualTo: startOfDay.toIso8601String())
-      .where('saledAt', isLessThan: endOfDay.toIso8601String())
-      .get();
+    // Firestore query for today's sales of the current user
+    final snapshotStream =
+        _soldProductsCollection
+            .where('userId', isEqualTo: _userId)
+            .where(
+              'saledAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+            )
+            .where('saledAt', isLessThan: Timestamp.fromDate(endOfDay))
+            .snapshots();
 
-  double revenue = 0;
-  double profit = 0;
-  int totalUnitsSoldToday = 0;
+    await for (var snapshot in snapshotStream) {
+      double revenue = 0;
+      double profit = 0;
+      int totalUnitsSoldToday = 0;
 
-  for (var doc in snapshot.docs) {
-    final data = doc.data();
-    final soldQuantity = data['soldQuantity'] as int;
-    final price = (data['price'] as num).toDouble();
-    final buyPrice = (data['buyPrice'] as num).toDouble();
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final soldQuantity = (data['soldQuantity'] ?? 0) as int;
+        final price = (data['price'] ?? 0).toDouble();
+        final buyPrice = (data['buyPrice'] ?? 0).toDouble();
 
-    revenue += price * soldQuantity;
-    profit += (price - buyPrice) * soldQuantity;
-    totalUnitsSoldToday += soldQuantity;
+        revenue += price * soldQuantity;
+        profit += (price - buyPrice) * soldQuantity;
+        totalUnitsSoldToday += soldQuantity;
+      }
+
+      yield {
+        'revenue': revenue,
+        'profit': profit,
+        'salesCount': snapshot.docs.length,
+        'totalProductsSold': totalUnitsSoldToday,
+      };
+    }
   }
 
-  return {
-    'revenue': revenue,
-    'profit': profit,
-    'salesCount': snapshot.docs.length,
-    'totalProductsSold': totalUnitsSoldToday,
-  };
-}
+  @override
+  Future<void> sellProduct({
+    required String productId,
+    required int quantitySold,
+    required double sellingPrice,
+  }) async {
+    if (_userId == null) throw Exception('User not authenticated');
 
+    final docRef = _productsCollection.doc(productId);
+    final snapshot = await docRef.get();
 
-@override
-Future<void> sellProduct({
-  required String productId,
-  required int quantitySold,
-  required double sellingPrice,
-}) async {
-  if (_userId == null) throw Exception('User not authenticated');
+    if (!snapshot.exists) throw Exception('Product not found');
 
-  final docRef = _productsCollection.doc(productId);
-  final snapshot = await docRef.get();
+    final product = Product.fromJson(snapshot.data()!);
 
-  if (!snapshot.exists) throw Exception('Product not found');
+    // Check stock
+    if (product.quantity - product.soldQuantity < quantitySold) {
+      throw Exception('Not enough stock');
+    }
 
-  final product = Product.fromJson(snapshot.data()!);
+    // Update original product's sold quantity
+    final updatedSoldQuantity = product.soldQuantity + quantitySold;
 
-  // Check stock
-  if (product.quantity - product.soldQuantity < quantitySold) {
-    throw Exception('Not enough stock');
+    await docRef.update({
+      'soldQuantity': updatedSoldQuantity,
+      'price': sellingPrice,
+      'isSaled': updatedSoldQuantity >= product.quantity,
+      'saledAt': FieldValue.serverTimestamp(), // 🔥 use server timestamp
+    });
+
+    // Store sold product in sold_products collection
+    await _soldProductsCollection.add({
+      'productId': product.id,
+      'name': product.name,
+      'price': sellingPrice,
+      'buyPrice': product.buyPrice,
+      'quantity': quantitySold,
+      'soldQuantity': quantitySold,
+      'isSaled': true,
+      'type': product.type.name,
+      'createdAt':
+          product.createdAt != null
+              ? Timestamp.fromDate(product.createdAt!)
+              : FieldValue.serverTimestamp(), // optional
+      'saledAt': FieldValue.serverTimestamp(), // 🔥 newest sale
+      'userId': _userId,
+    });
   }
-
-  // Update original product's sold quantity
-  final updatedSoldQuantity = product.soldQuantity + quantitySold;
-
-  await docRef.update({
-    'soldQuantity': updatedSoldQuantity,
-    'price': sellingPrice,
-    'isSaled': updatedSoldQuantity >= product.quantity,
-    'saledAt': DateTime.now().toIso8601String(),
-  });
-
-  // Store sold product in sold_products collection
-  await _soldProductsCollection.add({
-    'productId': product.id,
-    'name': product.name,
-    'price': sellingPrice,
-    'buyPrice': product.buyPrice,
-    'quantity': quantitySold,           // only this sale quantity
-    'soldQuantity': quantitySold,
-    'isSaled': true,
-    'type': product.type.name,          // store enum as string
-    'createdAt': product.createdAt.toIso8601String(),
-    'saledAt': DateTime.now().toIso8601String(),
-    'userId': _userId,
-  });
-}
-
-
-
 
   @override
   Future<void> deleteProduct(String id) {
@@ -145,109 +154,185 @@ Future<void> sellProduct({
     // TODO: implement updateProduct
     throw UnimplementedError();
   }
-  
-//   @override
-// Future<List<Product>> getSoldProducts() async {
-//   if (_userId == null) throw Exception('User not authenticated');
 
-//   final snapshot = await _soldProductsCollection.get();
+  //   @override
+  // Future<List<Product>> getSoldProducts() async {
+  //   if (_userId == null) throw Exception('User not authenticated');
 
-//   return snapshot.docs
-//       .map((doc) => Product.fromJson(doc.data()))
-//       .toList();
-// }
+  //   final snapshot = await _soldProductsCollection.get();
 
-@override
-Future<List<Product>> getSoldProducts() async {
-  if (_userId == null) throw Exception('User not authenticated');
+  //   return snapshot.docs
+  //       .map((doc) => Product.fromJson(doc.data()))
+  //       .toList();
+  // }
 
-  final snapshot = await _soldProductsCollection.get();
+  @override
+  Stream<List<Product>> getSoldProducts() {
+    if (_userId == null) {
+      throw Exception('User not authenticated');
+    }
 
-  return snapshot.docs.map((doc) {
-    final data = doc.data();
-
-    return Product(
-      id: data['productId'],
-      name: data['name'],
-      price: (data['price'] as num).toDouble(),
-      buyPrice: (data['buyPrice'] as num).toDouble(),
-      quantity: data['quantity'],
-      soldQuantity: data['soldQuantity'],
-      isSaled: data['isSaled'] ?? true,
-      type: Category.values.firstWhere((e) => e.name == data['type']),
-      createdAt: DateTime.parse(data['createdAt']),
-      saledAt: DateTime.parse(data['saledAt']),
-    );
-  }).toList();
-}
-
-// get monthly stats with month
-@override
-Future<Map<String, dynamic>> monthlyStats(int month) async {
-  if (_userId == null) throw Exception('User not authenticated');
-
-  final startOfMonth = DateTime(DateTime.now().year, month, 1);
-  final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
-
-  final snapshot = await _soldProductsCollection
-      .where('saledAt', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
-      .where('saledAt', isLessThan: endOfMonth.toIso8601String())
-      .get();
-
-  double revenue = 0;
-  double profit = 0;
-  int totalUnitsSold = 0;
-
-  for (var doc in snapshot.docs) {
-    final data = doc.data();
-    final soldQuantity = data['soldQuantity'] as int;
-    final price = (data['price'] as num).toDouble();
-    final buyPrice = (data['buyPrice'] as num).toDouble();
-
-    revenue += price * soldQuantity;
-    profit += (price - buyPrice) * soldQuantity;
-    totalUnitsSold += soldQuantity;
+    return _soldProductsCollection
+        .where('userId', isEqualTo: _userId)
+        .orderBy('saledAt', descending: true) // 🔥 newest sold products first
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) {
+                final data = doc.data();
+                return Product(
+                  id: data['productId'],
+                  name: data['name'],
+                  price: (data['price'] as num).toDouble(),
+                  buyPrice: (data['buyPrice'] as num).toDouble(),
+                  quantity: data['quantity'],
+                  soldQuantity: data['soldQuantity'],
+                  isSaled: data['isSaled'] ?? true,
+                  type: Category.values.firstWhere(
+                    (e) => e.name == data['type'],
+                  ),
+                  createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+                  saledAt: (data['saledAt'] as Timestamp?)?.toDate(),
+                );
+              }).toList(),
+        );
   }
 
-  return {
-    'revenue': revenue,
-    'profit': profit,
-    'salesCount': snapshot.docs.length,
-    'totalProductsSold': totalUnitsSold,
-  };
-}
-
-// most sold product in that month
-@override
-Future<List<Product>> mostSoldProducts(int month) async {
+  // get monthly stats with month
+ @override
+Stream<Map<String, dynamic>> monthlyStats(int month) {
   if (_userId == null) throw Exception('User not authenticated');
 
   final startOfMonth = DateTime(DateTime.now().year, month, 1);
   final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
 
-  final snapshot = await _soldProductsCollection
-      .where('saledAt', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
-      .where('saledAt', isLessThan: endOfMonth.toIso8601String())
-      .orderBy('soldQuantity', descending: true)
-      .limit(5)
-      .get();
+  return _soldProductsCollection
+      .where(
+        'saledAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+      )
+      .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
+      .snapshots()
+      .map((snapshot) {
+    double revenue = 0;
+    double profit = 0;
+    int totalUnitsSold = 0;
 
-  return snapshot.docs.map((doc) {
-    final data = doc.data();
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final soldQuantity = data['soldQuantity'] as int;
+      final price = (data['price'] as num).toDouble();
+      final buyPrice = (data['buyPrice'] as num).toDouble();
 
-    return Product(
-      id: data['productId'],
-      name: data['name'],
-      price: (data['price'] as num).toDouble(),
-      buyPrice: (data['buyPrice'] as num).toDouble(),
-      quantity: data['quantity'],
-      soldQuantity: data['soldQuantity'],
-      isSaled: data['isSaled'] ?? true,
-      type: Category.values.firstWhere((e) => e.name == data['type']),
-      createdAt: DateTime.parse(data['createdAt']),
-      saledAt: DateTime.parse(data['saledAt']),
-    );
-  }).toList();
+      revenue += price * soldQuantity;
+      profit += (price - buyPrice) * soldQuantity;
+      totalUnitsSold += soldQuantity;
+    }
+
+    return {
+      'revenue': revenue,
+      'profit': profit,
+      'salesCount': snapshot.docs.length,
+      'totalProductsSold': totalUnitsSold,
+    };
+  });
+}
+
+@override
+Stream<List<Product>> mostSoldProducts(int month) {
+  if (_userId == null) throw Exception('User not authenticated');
+
+  final startOfMonth = DateTime(DateTime.now().year, month, 1);
+  final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
+
+  return _soldProductsCollection
+      .where(
+        'saledAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+      )
+      .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
+      .snapshots()
+      .map((snapshot) {
+    // Aggregate products by productId
+    final Map<String, Product> aggregated = {};
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final productId = data['productId'];
+      final soldQuantity = data['soldQuantity'] as int;
+
+      if (aggregated.containsKey(productId)) {
+        final existing = aggregated[productId]!;
+        aggregated[productId] = existing.copyWith(
+          soldQuantity: existing.soldQuantity + soldQuantity,
+        );
+      } else {
+        aggregated[productId] = Product(
+          id: productId,
+          name: data['name'],
+          price: (data['price'] as num).toDouble(),
+          buyPrice: (data['buyPrice'] as num).toDouble(),
+          quantity: data['quantity'],
+          soldQuantity: soldQuantity,
+          isSaled: data['isSaled'] ?? true,
+          type: Category.values.firstWhere((e) => e.name == data['type']),
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+          saledAt: (data['saledAt'] as Timestamp?)?.toDate(),
+        );
+      }
+    }
+
+    final sorted = aggregated.values.toList()
+      ..sort((a, b) => b.soldQuantity.compareTo(a.soldQuantity));
+
+    return sorted.take(5).toList();
+  });
+}
+
+
+  // from each category performance per month
+  @override
+Stream<Map<String, dynamic>> categoryPerformance(int month) {
+  if (_userId == null) throw Exception('User not authenticated');
+
+  final startOfMonth = DateTime(DateTime.now().year, month, 1);
+  final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
+
+  return _soldProductsCollection
+      .where(
+        'saledAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+      )
+      .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
+      .snapshots()
+      .map((snapshot) {
+    // Initialize performance map
+    final Map<Category, Map<String, dynamic>> performance = {
+      for (var category in Category.values)
+        category: {
+          'productsSold': 0,
+          'revenue': 0.0,
+          'profit': 0.0,
+        }
+    };
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final category = Category.values.firstWhere(
+        (e) => e.name == data['type'],
+      );
+      final soldQuantity = data['soldQuantity'] as int;
+      final price = (data['price'] as num).toDouble();
+      final buyPrice = (data['buyPrice'] as num).toDouble();
+
+      performance[category]!['productsSold'] += soldQuantity;
+      performance[category]!['revenue'] += price * soldQuantity;
+      performance[category]!['profit'] += (price - buyPrice) * soldQuantity;
+    }
+
+    // Convert keys to string for easier UI use
+    return performance.map((key, value) => MapEntry(key.name, value));
+  });
 }
 
 }

@@ -42,13 +42,12 @@ class ProductRepoImpl implements ProductRepo {
   }
   
   @override
-  Future<Either<String, Map<String, dynamic>>> dailyStats() async{
-    try{
-      final stats = await productDataSource.dailyStats();
-      return Right(stats);
-    }catch(e, stackTrace){
-      final message =  handleError(e, stackTrace);
-      return Left(message);
+  Stream<Either<String, Map<String, dynamic>>> dailyStats() async* {
+    try {
+       yield* productDataSource.dailyStats().map((stats) => Right(stats));
+    } catch (e, stackTrace) {
+      final message = handleError(e, stackTrace);
+      yield Left(message);
     }
   }
   
@@ -72,36 +71,43 @@ class ProductRepoImpl implements ProductRepo {
   }
   
   @override
-  Future<Either<String, List<Product>>> getSoldProducts() async{
+  Stream<Either<String, List<Product>>> getSoldProducts() async* {
     try {
-      final products = await productDataSource.getSoldProducts();
-      return Right(products);
+      yield* productDataSource.getSoldProducts().map((products) => Right(products));
     } catch (e, stackTrace) {
       final message = handleError(e, stackTrace);
-      return Left(message);
+      yield Left(message);
     }
   }
 
   // get monthly stats with month
   @override
-  Future<Either<String, Map<String, dynamic>>> monthlyStats(int month) async {
+  Stream<Either<String, Map<String, dynamic>>> monthlyStats(int month) async* {
     try {
-      final stats = await productDataSource.monthlyStats(month);
-      return Right(stats);
+      yield* productDataSource.monthlyStats(month).map((stats) => Right(stats));
     } catch (e, stackTrace) {
       final message = handleError(e, stackTrace);
-      return Left(message);
+      yield Left(message);
     }
   }
 
   @override
-  Future<Either<String, List<Product>>> mostSoldProducts(int month) async {
+  Stream<Either<String, List<Product>>> mostSoldProducts(int month) async* {
     try {
-      final products = await productDataSource.mostSoldProducts(month);
-      return Right(products);
+      yield* productDataSource.mostSoldProducts(month).map((products) => Right(products));
     } catch (e, stackTrace) {
       final message = handleError(e, stackTrace);
-      return Left(message);
+      yield Left(message);
+    }
+  }
+
+  @override
+  Stream<Either<String, Map<String, dynamic>>> categoryPerformance(int month) async* {
+    try {
+      yield* productDataSource.categoryPerformance(month).map((performance)=> Right(performance));
+    } catch (e, stackTrace) {
+      final message = handleError(e, stackTrace);
+      yield Left(message);
     }
   }
 

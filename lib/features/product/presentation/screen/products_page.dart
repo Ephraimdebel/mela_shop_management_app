@@ -5,6 +5,7 @@ import 'package:hiracosmetics/core/enums/category.dart';
 import 'package:hiracosmetics/features/product/data/models/product.dart';
 import 'package:hiracosmetics/features/product/presentation/provider/product_provider.dart';
 import 'package:hiracosmetics/features/product/presentation/screen/sell_product.dart';
+import 'package:hiracosmetics/features/product/presentation/screen/widgets/product_card.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final selectedCategoryProvider = StateProvider<Category?>((ref) => null);
@@ -24,6 +25,8 @@ class ProductsPage extends ConsumerWidget {
             : unfilteredProducts
                 .where((p) => p.type == selectedCategory)
                 .toList();
+
+    onSellProduct(product) => _sellProduct(context, product);
 
     return Scaffold(
       appBar: AppBar(
@@ -116,96 +119,39 @@ class ProductsPage extends ConsumerWidget {
           ),
           // Products grid
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 1, // one per row like your screenshot
-                mainAxisSpacing: 16,
-                childAspectRatio: 2, // adjust to look like card
-              ),
-              itemCount: filteredProducts.length,
-              itemBuilder: (context, index) {
-                final product = filteredProducts[index];
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Top Row: type + stock badge
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              product.type.label,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0D1344),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${product.quantity - product.soldQuantity} in stock',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ],
+            child:
+                filteredProducts.isEmpty
+                    ? const Center(
+                      child: Text(
+                        "No products available",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
                         ),
-                        const SizedBox(height: 8),
-
-                        // Name + price (left aligned)
-                        Text(
-                          product.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '\$${product.buyPrice.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: const Color.fromARGB(255, 205, 205, 205),
-                          ),
-                        ),
-
-                        const Spacer(), // pushes button to bottom
-                        // Full width button
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => _sellProduct(context, product),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              backgroundColor: const Color(0xFF0D1344),
-                            ),
-                            child: const Text('Sell Product'),
-                          ),
-                        ),
-                      ],
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.all(4),
+                      itemCount: filteredProducts.length,
+                      itemBuilder: (context, index) {
+                        final product = filteredProducts[index];
+                        return ProductCard(
+                          icon: product.type.icon,
+                          category: product.type.label,
+                          label: product.name,
+                          count: product.quantity - product.soldQuantity,
+                          borderColor: const Color(0xFF1A237E),
+                          price: product.buyPrice,
+                          onClick: () {
+                            onSellProduct(product);
+                          },
+                        );
+                      },
                     ),
-                  ),
-                );
-              },
-            ),
           ),
+
+          SizedBox(height: 16),
         ],
       ),
     );
@@ -216,8 +162,7 @@ void _sellProduct(BuildContext context, Product product) {
   showDialog(
     context: context,
     builder: (context) {
-      return SellProductDialog( product: product,
-      );
+      return SellProductDialog(product: product);
     },
   );
 }

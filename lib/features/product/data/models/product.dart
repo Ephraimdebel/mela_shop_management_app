@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hiracosmetics/core/enums/category.dart';
 
@@ -9,16 +10,46 @@ class Product with _$Product {
   const factory Product({
     required String id,
     required String name,
-    required double price,       // selling price per unit
-    required double buyPrice,    // cost per unit
-    required int quantity,       // total stock
-    required int soldQuantity,   // units sold so far
-    required bool isSaled,       // true if fully sold
+    required double price,
+    required double buyPrice,
+    required int quantity,
+    required int soldQuantity,
+    required bool isSaled,
     required Category type,
-    required DateTime createdAt,
+    DateTime? createdAt,
     DateTime? saledAt,
   }) = _Product;
 
-  factory Product.fromJson(Map<String, dynamic> json) =>
-      _$ProductFromJson(json);
+  // No _$ProductFromJson usage here since we're handling Timestamps manually
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'],
+      name: json['name'],
+      price: (json['price'] as num).toDouble(),
+      buyPrice: (json['buyPrice'] as num).toDouble(),
+      quantity: json['quantity'],
+      soldQuantity: json['soldQuantity'],
+      isSaled: json['isSaled'],
+      type: Category.values.firstWhere((e) => e.name == json['type']),
+      createdAt: (json['createdAt'] as Timestamp?)?.toDate(),
+      saledAt: (json['saledAt'] as Timestamp?)?.toDate(),
+    );
+  }
+}
+
+extension ProductX on Product {
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'price': price,
+      'buyPrice': buyPrice,
+      'quantity': quantity,
+      'soldQuantity': soldQuantity,
+      'isSaled': isSaled,
+      'type': type.name,
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
+      'saledAt': saledAt != null ? Timestamp.fromDate(saledAt!) : null,
+    };
+  }
 }

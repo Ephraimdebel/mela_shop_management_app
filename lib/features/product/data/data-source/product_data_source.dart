@@ -14,7 +14,7 @@ abstract class ProductDataSource {
   Future<List<Product>> getProducts();
   Future<void> updateProduct(Product product);
   Future<void> deleteProduct(String id);
-  Future<Map<String, dynamic>> dailyStats();
+  Stream<Map<String, dynamic>> dailyStats();
   // sale product
   Future<void> sellProduct({
     required String productId,
@@ -22,11 +22,14 @@ abstract class ProductDataSource {
     required double sellingPrice,});
 
   // get sold products
-  Future<List<Product>> getSoldProducts();
+  Stream<List<Product>> getSoldProducts();
 
   // get monthly stats with month
-  Future<Map<String, dynamic>> monthlyStats(int month);
+  Stream<Map<String, dynamic>> monthlyStats(int month);
 
   // most sold product in that month
-  Future<List<Product>> mostSoldProducts(int month);
+  Stream<List<Product>> mostSoldProducts(int month);
+
+  // get each category performance per month
+  Stream<Map<String, dynamic>> categoryPerformance(int month);
 }
