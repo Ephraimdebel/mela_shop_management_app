@@ -231,4 +231,21 @@ Stream<List<Product>> getSoldProducts() {
     );
   }
 
+  // delete product
+  Future<void> deleteProduct(String id) async {
+    final result = await ref.read(productRepositoryProvider).deleteProduct(id);
+    result.fold(
+      (error) {
+        // Instead of throwing, you can show a SnackBar or log the error
+        debugPrint('Failed to delete product: $error');
+        // Optionally notify UI:
+        // state = state; // trigger rebuild if needed
+      },
+      (_) {
+        // Successfully deleted product
+        state = state.where((p) => p.id != id).toList();
+      },
+    );
+  }
+
 }

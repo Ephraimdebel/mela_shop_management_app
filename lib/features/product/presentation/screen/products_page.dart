@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hiracosmetics/core/configs/router-configs/route_names.dart';
+import 'package:hiracosmetics/core/dialogs/delete_dialog.dart';
 import 'package:hiracosmetics/core/enums/category.dart';
 import 'package:hiracosmetics/features/product/data/models/product.dart';
 import 'package:hiracosmetics/features/product/presentation/provider/product_provider.dart';
@@ -151,7 +152,16 @@ class ProductsPage extends ConsumerWidget {
                               RouteNames.editProduct,
                               pathParameters: {'id': product.id},
                             );
-                          }
+                          },
+                          onDelete: () async{
+                            final confirmed = await showDeleteDialog(context);
+                            if (confirmed) {
+                              await ref
+                                  .read(productNotifierProvider.notifier)
+                                  .deleteProduct(product.id);
+                            }
+                          },
+                        
                         );
                       },
                     ),
@@ -172,3 +182,5 @@ void _sellProduct(BuildContext context, Product product) {
     },
   );
 }
+
+

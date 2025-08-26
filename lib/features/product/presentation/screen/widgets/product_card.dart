@@ -8,7 +8,8 @@ class ProductCard extends StatelessWidget {
   final Color borderColor;
   final int count;
   final VoidCallback? onClick; // Sell button callback
-  final VoidCallback? onTap;   // Card tap callback (e.g. edit)
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete; // Card tap callback (e.g. edit)
 
   const ProductCard({
     super.key,
@@ -20,6 +21,7 @@ class ProductCard extends StatelessWidget {
     required this.price,
     this.onClick,
     this.onTap,
+    this.onDelete
   });
 
   @override
@@ -31,7 +33,7 @@ class ProductCard extends StatelessWidget {
         color: const Color(0xFF1A237E),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -46,8 +48,9 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
+              // stock/sold badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 5),
                 decoration: BoxDecoration(
                   color: borderColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
@@ -60,8 +63,22 @@ class ProductCard extends StatelessWidget {
                   ),
                 ),
               ),
+              // delete button (optional)
+              if (onDelete != null) ...[
+                // const SizedBox(width: 2),
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
+                  tooltip: "Delete",
+                ),
+              ],
             ],
           ),
+
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,

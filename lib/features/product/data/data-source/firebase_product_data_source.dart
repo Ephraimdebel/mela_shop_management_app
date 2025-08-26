@@ -143,8 +143,9 @@ class FirebaseProductDataSource implements ProductDataSource {
 
   @override
   Future<void> deleteProduct(String id) {
-    // TODO: implement deleteProduct
-    throw UnimplementedError();
+    if (_userId == null) throw Exception('User not authenticated');
+
+    return _productsCollection.doc(id).delete();
   }
 
   @override

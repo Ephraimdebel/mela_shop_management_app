@@ -41,9 +41,14 @@ class ProductRepoImpl implements ProductRepo {
   }
 
   @override
-  Future<Either<String, Unit>> deleteProduct(String id) {
-    // TODO: implement deleteProduct
-    throw UnimplementedError();
+  Future<Either<String, Unit>> deleteProduct(String id) async{
+    try{
+      await productDataSource.deleteProduct(id);
+      return const Right(unit);
+    }catch(e, stackTrace){
+      final message = handleError(e, stackTrace);
+      return Left(message);
+    }
   }
   
   @override
