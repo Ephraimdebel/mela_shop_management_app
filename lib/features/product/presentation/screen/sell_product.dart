@@ -59,7 +59,7 @@ class SellProductDialog extends HookConsumerWidget {
     }
 
     return AlertDialog(
-      title: const Text('Add Workout'),
+      title: const Text('Sell Product'),
       content: Form(
         key: formKey,
         child: Column(

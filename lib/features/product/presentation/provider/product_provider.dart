@@ -194,4 +194,41 @@ Stream<List<Product>> getSoldProducts() {
     );
   }
 
+  // get product by Id Future
+  Future<Product?> getProductById(String id) async {
+    final either = await ref.read(productRepositoryProvider).getProductById(id);
+    return either.fold(
+      (error) {
+        // Handle error
+        throw Exception('Failed to load product: $error');
+      },
+      (product) {
+        // Successfully loaded product
+        return product;
+      },
+    );
+  }
+
+  // update product
+  Future<void> updateProduct(Product product) async {
+    final result = await ref.read(productRepositoryProvider).updateProduct(product);
+    result.fold(
+      (error) {
+        // Instead of throwing, you can show a SnackBar or log the error
+        debugPrint('Failed to update product: $error');
+        // Optionally notify UI:
+        // state = state; // trigger rebuild if needed
+      },
+      (_) {
+        // Successfully updated product
+        state = state.map((p) {
+          if (p.id == product.id) {
+            return product;
+          }
+          return p;
+        }).toList();
+      },
+    );
+  }
+
 }

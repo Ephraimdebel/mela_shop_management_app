@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hiracosmetics/core/enums/category.dart';
@@ -150,9 +148,37 @@ class FirebaseProductDataSource implements ProductDataSource {
   }
 
   @override
-  Future<void> updateProduct(Product product) {
-    // TODO: implement updateProduct
-    throw UnimplementedError();
+  Future<void> updateProduct(Product product) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    final docRef = _productsCollection.doc(product.id);
+
+    // Get the existing product (to preserve fields we don’t want overwritten)
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      throw Exception('Product not found');
+    }
+
+    final existingData = doc.data()!;
+
+    // ✅ Preserve original createdAt & soldQuantity
+    final preservedCreatedAt = existingData['createdAt'];
+    final preservedSaledAt = existingData['saledAt'];
+    final preservedSoldQuantity = existingData['soldQuantity'] ?? 0;
+
+    await docRef.update({
+      'name': product.name,
+      'price': product.price,
+      'buyPrice': product.buyPrice,
+      'quantity': product.quantity,
+      'isSaled': product.isSaled,
+      'type': product.type.name,
+
+      // keep original values if not changed
+      'saledAt': preservedSaledAt,
+      'createdAt': preservedCreatedAt,
+      'soldQuantity': preservedSoldQuantity,
+    });
   }
 
   //   @override
@@ -199,140 +225,170 @@ class FirebaseProductDataSource implements ProductDataSource {
   }
 
   // get monthly stats with month
- @override
-Stream<Map<String, dynamic>> monthlyStats(int month) {
-  if (_userId == null) throw Exception('User not authenticated');
+  @override
+  Stream<Map<String, dynamic>> monthlyStats(int month) {
+    if (_userId == null) throw Exception('User not authenticated');
 
-  final startOfMonth = DateTime(DateTime.now().year, month, 1);
-  final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
+    final startOfMonth = DateTime(DateTime.now().year, month, 1);
+    final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
 
-  return _soldProductsCollection
-      .where(
-        'saledAt',
-        isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
-      )
-      .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
-      .snapshots()
-      .map((snapshot) {
-    double revenue = 0;
-    double profit = 0;
-    int totalUnitsSold = 0;
+    return _soldProductsCollection
+        .where(
+          'saledAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+        )
+        .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
+        .snapshots()
+        .map((snapshot) {
+          double revenue = 0;
+          double profit = 0;
+          int totalUnitsSold = 0;
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final soldQuantity = data['soldQuantity'] as int;
-      final price = (data['price'] as num).toDouble();
-      final buyPrice = (data['buyPrice'] as num).toDouble();
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            final soldQuantity = data['soldQuantity'] as int;
+            final price = (data['price'] as num).toDouble();
+            final buyPrice = (data['buyPrice'] as num).toDouble();
 
-      revenue += price * soldQuantity;
-      profit += (price - buyPrice) * soldQuantity;
-      totalUnitsSold += soldQuantity;
-    }
+            revenue += price * soldQuantity;
+            profit += (price - buyPrice) * soldQuantity;
+            totalUnitsSold += soldQuantity;
+          }
 
-    return {
-      'revenue': revenue,
-      'profit': profit,
-      'salesCount': snapshot.docs.length,
-      'totalProductsSold': totalUnitsSold,
-    };
-  });
-}
+          return {
+            'revenue': revenue,
+            'profit': profit,
+            'salesCount': snapshot.docs.length,
+            'totalProductsSold': totalUnitsSold,
+          };
+        });
+  }
 
-@override
-Stream<List<Product>> mostSoldProducts(int month) {
-  if (_userId == null) throw Exception('User not authenticated');
+  @override
+  Stream<List<Product>> mostSoldProducts(int month) {
+    if (_userId == null) throw Exception('User not authenticated');
 
-  final startOfMonth = DateTime(DateTime.now().year, month, 1);
-  final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
+    final startOfMonth = DateTime(DateTime.now().year, month, 1);
+    final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
 
-  return _soldProductsCollection
-      .where(
-        'saledAt',
-        isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
-      )
-      .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
-      .snapshots()
-      .map((snapshot) {
-    // Aggregate products by productId
-    final Map<String, Product> aggregated = {};
+    return _soldProductsCollection
+        .where(
+          'saledAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+        )
+        .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
+        .snapshots()
+        .map((snapshot) {
+          // Aggregate products by productId
+          final Map<String, Product> aggregated = {};
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final productId = data['productId'];
-      final soldQuantity = data['soldQuantity'] as int;
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            final productId = data['productId'];
+            final soldQuantity = data['soldQuantity'] as int;
 
-      if (aggregated.containsKey(productId)) {
-        final existing = aggregated[productId]!;
-        aggregated[productId] = existing.copyWith(
-          soldQuantity: existing.soldQuantity + soldQuantity,
-        );
-      } else {
-        aggregated[productId] = Product(
-          id: productId,
-          name: data['name'],
-          price: (data['price'] as num).toDouble(),
-          buyPrice: (data['buyPrice'] as num).toDouble(),
-          quantity: data['quantity'],
-          soldQuantity: soldQuantity,
-          isSaled: data['isSaled'] ?? true,
-          type: Category.values.firstWhere((e) => e.name == data['type']),
-          createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
-          saledAt: (data['saledAt'] as Timestamp?)?.toDate(),
-        );
-      }
-    }
+            if (aggregated.containsKey(productId)) {
+              final existing = aggregated[productId]!;
+              aggregated[productId] = existing.copyWith(
+                soldQuantity: existing.soldQuantity + soldQuantity,
+              );
+            } else {
+              aggregated[productId] = Product(
+                id: productId,
+                name: data['name'],
+                price: (data['price'] as num).toDouble(),
+                buyPrice: (data['buyPrice'] as num).toDouble(),
+                quantity: data['quantity'],
+                soldQuantity: soldQuantity,
+                isSaled: data['isSaled'] ?? true,
+                type: Category.values.firstWhere((e) => e.name == data['type']),
+                createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+                saledAt: (data['saledAt'] as Timestamp?)?.toDate(),
+              );
+            }
+          }
 
-    final sorted = aggregated.values.toList()
-      ..sort((a, b) => b.soldQuantity.compareTo(a.soldQuantity));
+          final sorted =
+              aggregated.values.toList()
+                ..sort((a, b) => b.soldQuantity.compareTo(a.soldQuantity));
 
-    return sorted.take(5).toList();
-  });
-}
-
+          return sorted.take(5).toList();
+        });
+  }
 
   // from each category performance per month
   @override
-Stream<Map<String, dynamic>> categoryPerformance(int month) {
-  if (_userId == null) throw Exception('User not authenticated');
+  Stream<Map<String, dynamic>> categoryPerformance(int month) {
+    if (_userId == null) throw Exception('User not authenticated');
 
-  final startOfMonth = DateTime(DateTime.now().year, month, 1);
-  final endOfMonth = DateTime(DateTime.now().year, month + 1, 1);
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, month, 1);
+    final endOfMonth =
+        (month == 12)
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, month + 1, 1);
 
-  return _soldProductsCollection
-      .where(
-        'saledAt',
-        isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
-      )
-      .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
-      .snapshots()
-      .map((snapshot) {
-    // Initialize performance map
-    final Map<Category, Map<String, dynamic>> performance = {
-      for (var category in Category.values)
-        category: {
-          'productsSold': 0,
-          'revenue': 0.0,
-          'profit': 0.0,
-        }
-    };
+    return _soldProductsCollection
+        .where(
+          'saledAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
+        )
+        .where('saledAt', isLessThan: Timestamp.fromDate(endOfMonth))
+        .snapshots()
+        .map((snapshot) {
+          // Initialize performance map
+          final Map<Category, Map<String, dynamic>> performance = {
+            for (var category in Category.values)
+              category: {'productsSold': 0, 'revenue': 0.0, 'profit': 0.0},
+          };
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final category = Category.values.firstWhere(
-        (e) => e.name == data['type'],
-      );
-      final soldQuantity = data['soldQuantity'] as int;
-      final price = (data['price'] as num).toDouble();
-      final buyPrice = (data['buyPrice'] as num).toDouble();
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
 
-      performance[category]!['productsSold'] += soldQuantity;
-      performance[category]!['revenue'] += price * soldQuantity;
-      performance[category]!['profit'] += (price - buyPrice) * soldQuantity;
-    }
+            // ✅ Skip if category is invalid or missing
+            if (data['type'] == null) continue;
 
-    // Convert keys to string for easier UI use
-    return performance.map((key, value) => MapEntry(key.name, value));
-  });
-}
+            final category = Category.values.firstWhere(
+              (e) => e.name == data['type'],
+              orElse: () => Category.values.first, // fallback
+            );
 
+            final soldQuantity = (data['soldQuantity'] as num?)?.toInt() ?? 0;
+            final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+            final buyPrice = (data['buyPrice'] as num?)?.toDouble() ?? 0.0;
+
+            performance[category]!['productsSold'] += soldQuantity;
+            performance[category]!['revenue'] += price * soldQuantity;
+            performance[category]!['profit'] +=
+                (price - buyPrice) * soldQuantity;
+          }
+
+          // Convert keys to string for UI
+          return performance.map((key, value) => MapEntry(key.name, value));
+        });
+  }
+
+  // get product by id
+  @override
+  Future<Product?> getProductById(String id) async {
+    if (_userId == null) throw Exception('User not authenticated');
+
+    final doc = await _productsCollection.doc(id).get();
+    if (!doc.exists) return null;
+
+    final data = doc.data()!;
+
+    return Product(
+      id: id,
+      name: data['name'] as String,
+      price: (data['price'] as num).toDouble(),
+      buyPrice: (data['buyPrice'] as num).toDouble(),
+      quantity: (data['quantity'] as num).toInt(),
+      soldQuantity: (data['soldQuantity'] as num).toInt(),
+      isSaled: data['isSaled'] ?? false, // ✅ default false
+      type: Category.values.firstWhere((e) => e.name == data['type']),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      saledAt: (data['saledAt'] as Timestamp?)?.toDate(),
+    );
+  }
 }

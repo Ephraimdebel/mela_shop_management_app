@@ -37,4 +37,8 @@ abstract class ProductRepo {
 
   // get each category performance per month
   Stream<Either<String, Map<String, dynamic>>> categoryPerformance(int month);
+
+  // get product by Id
+  Future<Either<String, Product?>> getProductById(String id);
 }
+

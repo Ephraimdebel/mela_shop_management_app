@@ -4,10 +4,9 @@ import 'package:hiracosmetics/firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'core/configs/router-configs/router.dart';
 import 'features/onboarding/presentation/onboarding/onboarding_provider.dart';
-import 'features/auth/presentation/controller/auth/auth_provider.dart';
+// import 'features/auth/presentation/controller/auth/auth_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,8 +33,8 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasOnboardingSeen = ref.watch(hasSeenOnboardingProvider);
-    final user = ref.watch(authNotifierProvider);
+    // final hasOnboardingSeen = ref.watch(hasSeenOnboardingProvider);
+    // final user = ref.watch(authNotifierProvider);
     final router = ref.watch(routeProvider);
     return MaterialApp.router(
       title: 'Hira Cosmetics',

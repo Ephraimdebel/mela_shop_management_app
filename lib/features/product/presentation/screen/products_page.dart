@@ -146,6 +146,12 @@ class ProductsPage extends ConsumerWidget {
                           onClick: () {
                             onSellProduct(product);
                           },
+                          onTap: () {
+                            context.pushNamed(
+                              RouteNames.editProduct,
+                              pathParameters: {'id': product.id},
+                            );
+                          }
                         );
                       },
                     ),

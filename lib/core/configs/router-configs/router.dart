@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:hiracosmetics/core/configs/router-configs/route_names.dart';
-import 'package:hiracosmetics/core/extensions/user_ref_extension.dart';
-import 'package:hiracosmetics/features/auth/presentation/controller/auth/state/auth_state.dart';
+// import 'package:hiracosmetics/core/extensions/user_ref_extension.dart';
+// import 'package:hiracosmetics/features/auth/presentation/controller/auth/state/auth_state.dart';
 import 'package:hiracosmetics/features/main_screen.dart';
 import 'package:hiracosmetics/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:hiracosmetics/features/auth/presentation/screens/sign_in_screen.dart';
@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hiracosmetics/features/product/presentation/screen/add_product_page.dart';
 import 'package:hiracosmetics/features/product/presentation/screen/daily_stats_page.dart';
+import 'package:hiracosmetics/features/product/presentation/screen/edit_product_page.dart';
 import 'package:hiracosmetics/features/product/presentation/screen/monthly_stats_page.dart';
 import 'package:hiracosmetics/features/product/presentation/screen/products_page.dart';
 import 'package:hiracosmetics/features/product/presentation/screen/sold_products.dart';
@@ -63,12 +64,15 @@ final routeProvider = Provider((ref) {
         path: "/add-product",
         builder: (context, state) => const AddProductPage(),
       ),
+      GoRoute(
+        name: RouteNames.editProduct,
+        path: "/edit-product/:id",
+        builder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return EditProductPage(id);
+        },
+      ),
 
-      // GoRoute(
-      //   name: RouteNames.products,
-      //   path: "/products",
-      //   builder: (context, state) => const ProductsPage(),
-      // ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainScreen(navigationShell: navigationShell);

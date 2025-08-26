@@ -14,5 +14,5 @@ class RouteNames {
   static const String sales = '/sales';
   static const String dailyStats = '/daily-stats';
   static const String monthlyStats = '/monthly-stats';
-  static var workoutList = '/workout-list';
+  static const String editProduct = '/edit-product'; // Updated to include :id parameter
 }

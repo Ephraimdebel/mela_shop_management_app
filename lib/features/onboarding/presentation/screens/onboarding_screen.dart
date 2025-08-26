@@ -39,7 +39,8 @@ class OnboardingScreen extends StatelessWidget {
   void _onDone(BuildContext context) async {
     await _changeOnboardingIntialStatus();
     if (context.mounted) {
-      context.goNamed(RouteNames.addProduct);
+
+      context.goNamed(RouteNames.products);
     }
     // Navigator.of(context).pushReplacement(
     //   MaterialPageRoute(builder: (_) => const WorkoutListScreen()),
@@ -49,9 +50,9 @@ class OnboardingScreen extends StatelessWidget {
     //   MaterialPageRoute(builder: (_) => const WorkoutListScreen()),
     // );
   }
-
   Future<void> _changeOnboardingIntialStatus() async {
     final sh = await SharedPreferences.getInstance();
     sh.setBool(hasOnboardingInitialized, true);
   }
+
 }

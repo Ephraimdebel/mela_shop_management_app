@@ -30,9 +30,14 @@ class ProductRepoImpl implements ProductRepo {
   }
 
   @override
-  Future<Either<String, Unit>> updateProduct(Product product) {
-    // TODO: implement updateProduct
-    throw UnimplementedError();
+  Future<Either<String, Unit>> updateProduct(Product product) async{
+    try{
+      await productDataSource.updateProduct(product);
+      return const Right(unit);
+    }catch(e, stackTrace){
+      final message =  handleError(e, stackTrace);
+      return Left(message);
+    }
   }
 
   @override
@@ -108,6 +113,18 @@ class ProductRepoImpl implements ProductRepo {
     } catch (e, stackTrace) {
       final message = handleError(e, stackTrace);
       yield Left(message);
+    }
+  }
+
+  // get product by id
+  @override
+  Future<Either<String, Product?>> getProductById(String id) async {
+    try {
+      final product = await productDataSource.getProductById(id);
+      return Right(product);
+    } catch (e, stackTrace) {
+      final message = handleError(e, stackTrace);
+      return Left(message);
     }
   }
 

@@ -7,7 +7,8 @@ class ProductCard extends StatelessWidget {
   final num price;
   final Color borderColor;
   final int count;
-  final VoidCallback? onClick;
+  final VoidCallback? onClick; // Sell button callback
+  final VoidCallback? onTap;   // Card tap callback (e.g. edit)
 
   const ProductCard({
     super.key,
@@ -18,29 +19,28 @@ class ProductCard extends StatelessWidget {
     required this.borderColor,
     required this.price,
     this.onClick,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final cardContent = Container(
       margin: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         border: Border(left: BorderSide(color: borderColor, width: 4)),
-        color: Color(0xFF1A237E),
+        color: const Color(0xFF1A237E),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: EdgeInsets.all(8),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
           Row(
             children: [
               Icon(icon, size: 12, color: Colors.grey),
-              // SizedBox(width: 12),
               Text(
                 category,
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.grey,
                 ),
@@ -54,7 +54,7 @@ class ProductCard extends StatelessWidget {
                 ),
                 child: Text(
                   '$count ${onClick != null ? "in stock" : "sold"}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
                   ),
@@ -62,13 +62,16 @@ class ProductCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
               Text('\$$price'),
             ],
@@ -91,5 +94,16 @@ class ProductCard extends StatelessWidget {
         ],
       ),
     );
+
+    // ✅ Wrap with InkWell only if onTap is provided
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
   }
 }

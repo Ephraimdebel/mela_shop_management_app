@@ -32,4 +32,7 @@ abstract class ProductDataSource {
 
   // get each category performance per month
   Stream<Map<String, dynamic>> categoryPerformance(int month);
+
+  // get product by id
+  Future<Product?> getProductById(String id);
 }
